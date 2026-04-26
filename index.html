@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Axon Voz</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a0f;
+      color: #e8e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ── Título ── */
+    .title {
+      font-size: 1.1rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: #6e6e9a;
+      margin-bottom: 2rem;
+    }
+
+    /* ── Orbe principal ── */
+    .orb-wrapper {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 2rem;
+    }
+
+    .orb-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      animation: none;
+    }
+
+    .orb-ring-1 { width: 200px; height: 200px; border-color: #2a2a4a; }
+    .orb-ring-2 { width: 220px; height: 220px; border-color: #1a1a3a; }
+
+    .orb {
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #3a3a7a, #0d0d2b);
+      border: 2px solid #3a3a6a;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 30px rgba(80, 80, 180, 0.2);
+      position: relative;
+      z-index: 1;
+    }
+
+    .orb:hover { box-shadow: 0 0 50px rgba(100, 100, 220, 0.4); }
+    .orb:active { transform: scale(0.96); }
+
+    .orb-icon {
+      font-size: 2.5rem;
+      transition: opacity 0.2s;
+    }
+
+    /* ── Estados ── */
+    body.listening .orb {
+      background: radial-gradient(circle at 35% 35%, #7a3a3a, #2b0d0d);
+      border-color: #cc4444;
+      box-shadow: 0 0 60px rgba(220, 60, 60, 0.5);
+      animation: pulse-listen 1.2s ease-in-out infinite;
+    }
+    body.listening .orb-ring-1 {
+      border-color: rgba(200, 60, 60, 0.4);
+      animation: ring-expand 1.2s ease-out infinite;
+    }
+    body.listening .orb-ring-2 {
+      border-color: rgba(200, 60, 60, 0.2);
+      animation: ring-expand 1.2s ease-out 0.3s infinite;
+    }
+
+    body.thinking .orb {
+      background: radial-gradient(circle at 35% 35%, #5a6a2a, #1a2b0d);
+      border-color: #88aa44;
+      box-shadow: 0 0 60px rgba(130, 180, 50, 0.4);
+      animation: pulse-think 1.8s ease-in-out infinite;
+    }
+
+    body.speaking .orb {
+      background: radial-gradient(circle at 35% 35%, #2a6a5a, #0d2b25);
+      border-color: #44aacc;
+      box-shadow: 0 0 60px rgba(50, 180, 220, 0.5);
+      animation: pulse-speak 0.8s ease-in-out infinite;
+    }
+
+    @keyframes pulse-listen {
+      0%, 100% { box-shadow: 0 0 40px rgba(220,60,60,0.4); }
+      50% { box-shadow: 0 0 80px rgba(220,60,60,0.7); }
+    }
+    @keyframes pulse-think {
+      0%, 100% { box-shadow: 0 0 40px rgba(130,180,50,0.3); }
+      50% { box-shadow: 0 0 80px rgba(130,180,50,0.6); }
+    }
+    @keyframes pulse-speak {
+      0%, 100% { box-shadow: 0 0 40px rgba(50,180,220,0.4); }
+      50% { box-shadow: 0 0 80px rgba(50,180,220,0.8); }
+    }
+    @keyframes ring-expand {
+      0% { transform: scale(1); opacity: 0.8; }
+      100% { transform: scale(1.3); opacity: 0; }
+    }
+
+    /* ── Estado label ── */
+    .status {
+      font-size: 0.85rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #4a4a7a;
+      height: 1.2rem;
+      transition: color 0.3s;
+    }
+    body.listening .status { color: #cc6666; }
+    body.thinking  .status { color: #99bb55; }
+    body.speaking  .status { color: #55bbdd; }
+
+    /* ── Transcripción / Respuesta ── */
+    .transcript-area {
+      width: min(90vw, 480px);
+      margin-top: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+      max-height: 30dvh;
+      overflow-y: auto;
+    }
+
+    .bubble {
+      padding: 0.8rem 1.1rem;
+      border-radius: 16px;
+      font-size: 0.92rem;
+      line-height: 1.5;
+      max-width: 85%;
+      animation: fadeIn 0.3s ease;
+    }
+    .bubble.user {
+      background: #1e1e3a;
+      border: 1px solid #3a3a6a;
+      align-self: flex-end;
+      color: #c0c0e0;
+    }
+    .bubble.assistant {
+      background: #0e2020;
+      border: 1px solid #1a4a4a;
+      align-self: flex-start;
+      color: #90d0d0;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Botón parar voz ── */
+    .stop-btn {
+      display: none;
+      margin-top: 1rem;
+      background: #2a0808;
+      border: 1px solid #880000;
+      color: #ee6666;
+      padding: 0.5rem 1.4rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+    body.speaking .stop-btn { display: block; }
+
+    /* ── Control velocidad ── */
+    .speed-control {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: #111128;
+      border: 1px solid #2a2a4a;
+      border-radius: 20px;
+      padding: 0.4rem 0.8rem;
+    }
+    .speed-control span { font-size: 1rem; cursor: pointer; }
+    .speed-label {
+      font-size: 0.75rem;
+      color: #5a5a8a;
+      min-width: 2.5rem;
+      text-align: center;
+    }
+
+    /* ── Setup screen ── */
+    .setup-screen {
+      position: fixed;
+      inset: 0;
+      background: #0a0a0f;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      z-index: 100;
+    }
+    .setup-screen h2 {
+      font-size: 1.1rem;
+      letter-spacing: 0.2em;
+      color: #6e6e9a;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+    }
+    .setup-screen p {
+      font-size: 0.8rem;
+      color: #4a4a6a;
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+    .setup-screen input {
+      width: 100%;
+      max-width: 400px;
+      background: #111128;
+      border: 1px solid #3a3a6a;
+      color: #c0c0e0;
+      padding: 0.8rem 1rem;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      font-family: monospace;
+      margin-bottom: 1rem;
+      outline: none;
+    }
+    .setup-screen input:focus { border-color: #6666cc; }
+    .setup-btn {
+      background: #1a1a4a;
+      border: 1px solid #4a4acc;
+      color: #9999ff;
+      padding: 0.7rem 2rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      letter-spacing: 0.1em;
+    }
+    .setup-btn:hover { background: #2a2a6a; }
+    .setup-gear {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      background: none;
+      border: 1px solid #2a2a4a;
+      color: #4a4a6a;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── Error ── */
+    .error-msg {
+      position: fixed;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #2a0808;
+      border: 1px solid #880000;
+      color: #ee8888;
+      padding: 0.6rem 1.2rem;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      display: none;
+      max-width: 90vw;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Setup screen -->
+  <div class="setup-screen" id="setupScreen" style="display:none">
+    <h2>AXON VOZ</h2>
+    <p>Introduce tu API Key de Anthropic para continuar.<br/>Se guarda solo en este dispositivo.</p>
+    <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off" />
+    <button class="setup-btn" onclick="saveApiKey()">Guardar y continuar</button>
+  </div>
+
+  <button class="setup-gear" onclick="showSetup()" title="Configuración">⚙</button>
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="title">AXON VOZ</div>
+
+  <div class="orb-wrapper">
+    <div class="orb-ring orb-ring-2"></div>
+    <div class="orb-ring orb-ring-1"></div>
+    <div class="orb" id="orb" onclick="handleOrb()">
+      <span class="orb-icon" id="orbIcon">🎙️</span>
+    </div>
+  </div>
+
+  <div class="status" id="statusLabel">Pulsa para hablar</div>
+
+  <div class="transcript-area" id="transcriptArea"></div>
+
+  <button class="stop-btn" onclick="stopSpeaking()">■ Parar voz</button>
+
+  <div class="speed-control">
+    <span onclick="changeSpeed(-0.1)">🐢</span>
+    <span class="speed-label" id="speedLabel">1.0×</span>
+    <span onclick="changeSpeed(0.1)">🐇</span>
+  </div>
+
+<script>
+  // ── Configuración ──────────────────────────────────────────────
+  const MODEL = 'claude-sonnet-4-6';
+  const ANTHROPIC_API_KEY = localStorage.getItem('axon_api_key') || '';
+  const SYSTEM_PROMPT = `Eres Axon, el asistente de voz personal de Ramon.
+Estás optimizado para uso en el coche: respuestas cortas y claras, máximo 3 frases salvo que te pidan más detalle.
+Habla siempre en español. Tono directo y amigable.`;
+
+  // ── Estado ─────────────────────────────────────────────────────
+  let state = 'idle'; // idle | listening | thinking | speaking
+  let speechRate = 1.0;
+  let recognition = null;
+  let synth = window.speechSynthesis;
+  let conversationHistory = [];
+  let currentUtterance = null;
+
+  // ── Inicializar SpeechRecognition ──────────────────────────────
+  function initRecognition() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { showError('Tu navegador no soporta reconocimiento de voz. Usa Chrome.'); return null; }
+
+    const r = new SR();
+    r.lang = 'es-ES';
+    r.continuous = false;
+    r.interimResults = false;
+    r.maxAlternatives = 1;
+
+    r.onresult = (e) => {
+      const text = e.results[0][0].transcript.trim();
+      if (text) processUserInput(text);
+    };
+
+    r.onerror = (e) => {
+      if (e.error === 'no-speech') { setState('idle'); return; }
+      showError('Error de micrófono: ' + e.error);
+      setState('idle');
+    };
+
+    r.onend = () => {
+      if (state === 'listening') setState('idle');
+    };
+
+    return r;
+  }
+
+  // ── Manejar orbe ───────────────────────────────────────────────
+  function handleOrb() {
+    if (state === 'speaking') { stopSpeaking(); return; }
+    if (state === 'listening') { stopListening(); return; }
+    if (state === 'thinking') return;
+    startListening();
+  }
+
+  function startListening() {
+    if (!recognition) recognition = initRecognition();
+    if (!recognition) return;
+    try {
+      recognition.start();
+      setState('listening');
+    } catch(e) {
+      showError('No se pudo iniciar el micrófono.');
+    }
+  }
+
+  function stopListening() {
+    if (recognition) recognition.stop();
+    setState('idle');
+  }
+
+  // ── Procesar entrada del usuario ───────────────────────────────
+  async function processUserInput(text) {
+    setState('thinking');
+    addBubble('user', text);
+
+    conversationHistory.push({ role: 'user', content: text });
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': getApiKey(),
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          max_tokens: 300,
+          system: SYSTEM_PROMPT,
+          messages: conversationHistory
+        })
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error?.message || `Error ${response.status}`);
+      }
+
+      const data = await response.json();
+      const reply = data.content[0].text.trim();
+
+      conversationHistory.push({ role: 'assistant', content: reply });
+      addBubble('assistant', reply);
+      speakText(reply);
+
+    } catch(e) {
+      showError('Error: ' + e.message);
+      setState('idle');
+    }
+  }
+
+  // ── Síntesis de voz ────────────────────────────────────────────
+  function speakText(text) {
+    if (!synth) { showError('Síntesis de voz no disponible.'); setState('idle'); return; }
+    synth.cancel();
+
+    currentUtterance = new SpeechSynthesisUtterance(text);
+    currentUtterance.lang = 'es-ES';
+    currentUtterance.rate = speechRate;
+    currentUtterance.pitch = 1.0;
+
+    // Intentar voz española
+    const voices = synth.getVoices();
+    const esVoice = voices.find(v => v.lang.startsWith('es') && v.localService) ||
+                    voices.find(v => v.lang.startsWith('es'));
+    if (esVoice) currentUtterance.voice = esVoice;
+
+    currentUtterance.onstart = () => setState('speaking');
+    currentUtterance.onend   = () => setState('idle');
+    currentUtterance.onerror = () => setState('idle');
+
+    setState('speaking');
+    synth.speak(currentUtterance);
+  }
+
+  function stopSpeaking() {
+    synth.cancel();
+    setState('idle');
+  }
+
+  // ── UI helpers ─────────────────────────────────────────────────
+  const icons = { idle: '🎙️', listening: '🔴', thinking: '💭', speaking: '🔊' };
+  const labels = { idle: 'Pulsa para hablar', listening: 'Escuchando...', thinking: 'Pensando...', speaking: 'Hablando...' };
+
+  function setState(s) {
+    state = s;
+    document.body.className = s === 'idle' ? '' : s;
+    document.getElementById('orbIcon').textContent = icons[s];
+    document.getElementById('statusLabel').textContent = labels[s];
+  }
+
+  function addBubble(role, text) {
+    const area = document.getElementById('transcriptArea');
+    const div = document.createElement('div');
+    div.className = `bubble ${role}`;
+    div.textContent = text;
+    area.appendChild(div);
+    area.scrollTop = area.scrollHeight;
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 5000);
+  }
+
+  function changeSpeed(delta) {
+    speechRate = Math.max(0.5, Math.min(2.0, Math.round((speechRate + delta) * 10) / 10));
+    document.getElementById('speedLabel').textContent = speechRate.toFixed(1) + '×';
+  }
+
+  // ── Setup / API Key ───────────────────────────────────────────
+  function checkApiKey() {
+    const key = localStorage.getItem('axon_api_key');
+    if (!key) showSetup();
+  }
+
+  function showSetup() {
+    const screen = document.getElementById('setupScreen');
+    const input = document.getElementById('apiKeyInput');
+    input.value = localStorage.getItem('axon_api_key') || '';
+    screen.style.display = 'flex';
+  }
+
+  function saveApiKey() {
+    const val = document.getElementById('apiKeyInput').value.trim();
+    if (!val.startsWith('sk-ant-')) {
+      alert('La clave debe empezar por sk-ant-...');
+      return;
+    }
+    localStorage.setItem('axon_api_key', val);
+    document.getElementById('setupScreen').style.display = 'none';
+    location.reload();
+  }
+
+  // Leer key guardada
+  function getApiKey() {
+    return localStorage.getItem('axon_api_key') || '';
+  }
+
+  // Cargar voces al inicio
+  checkApiKey();
+  if (synth) {
+    synth.onvoiceschanged = () => synth.getVoices();
+    synth.getVoices();
+  }
+</script>
+</body>
+</html>
